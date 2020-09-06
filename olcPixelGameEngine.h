@@ -260,6 +260,7 @@ int main()
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <cassert>
 
 // O------------------------------------------------------------------------------O
 // | COMPILER CONFIGURATION ODDITIES                                              |
@@ -527,9 +528,11 @@ namespace olc
 	public:
 		void SetSampleMode(olc::Sprite::Mode mode = olc::Sprite::Mode::NORMAL);
 		Pixel GetPixel(int32_t x, int32_t y) const;
-		bool  SetPixel(int32_t x, int32_t y, Pixel p);
+    bool  SetPixel(int32_t x, int32_t y, Pixel p);
+    void  FastSetPixel(int32_t x, int32_t y, Pixel p);
 		Pixel GetPixel(const olc::vi2d& a) const;
-		bool  SetPixel(const olc::vi2d& a, Pixel p);
+    bool  SetPixel(const olc::vi2d& a, Pixel p);
+    void  FastSetPixel(const olc::vi2d& a, Pixel p);
 		Pixel Sample(float x, float y) const;
 		Pixel SampleBL(float u, float v) const;
 		Pixel* GetData();
@@ -747,6 +750,7 @@ namespace olc
 
 	public: // DRAWING ROUTINES
 		// Draws a single Pixel
+    virtual void FastDraw(int32_t x, int32_t y, Pixel p = olc::WHITE);
 		virtual bool Draw(int32_t x, int32_t y, Pixel p = olc::WHITE);
 		bool Draw(const olc::vi2d& pos, Pixel p = olc::WHITE);
 		// Draws a line from (x1,y1) to (x2,y2)
@@ -1059,8 +1063,11 @@ namespace olc
 	Pixel Sprite::GetPixel(const olc::vi2d& a) const
 	{ return GetPixel(a.x, a.y); }
 
-	bool Sprite::SetPixel(const olc::vi2d& a, Pixel p)
-	{ return SetPixel(a.x, a.y, p); }
+  bool Sprite::SetPixel(const olc::vi2d& a, Pixel p)
+  { return SetPixel(a.x, a.y, p); }
+
+  void Sprite::FastSetPixel(const olc::vi2d& a, Pixel p)
+  { FastSetPixel(a.x, a.y, p); }
 
 	Pixel Sprite::GetPixel(int32_t x, int32_t y) const
 	{
@@ -1087,6 +1094,11 @@ namespace olc
 		else
 			return false;
 	}
+
+  void Sprite::FastSetPixel(int32_t x, int32_t y, Pixel p)
+  {
+    pColData[y * width + x] = p;
+  }
 
 	Pixel Sprite::Sample(float x, float y) const
 	{
@@ -1602,39 +1614,48 @@ namespace olc
 		return Draw(pos.x, pos.y, p);
 	}
 
+  // This is it, the critical function that plots a pixel
+  bool PixelGameEngine::Draw(int32_t x, int32_t y, Pixel p)
+  {
+    if (!pDrawTarget) return false;
+
+    if (nPixelMode == Pixel::NORMAL)
+    {
+      return pDrawTarget->SetPixel(x, y, p);
+    }
+
+    if (nPixelMode == Pixel::MASK)
+    {
+      if (p.a == 255)
+        return pDrawTarget->SetPixel(x, y, p);
+    }
+
+    if (nPixelMode == Pixel::ALPHA)
+    {
+      Pixel d = pDrawTarget->GetPixel(x, y);
+      float a = (float)(p.a / 255.0f) * fBlendFactor;
+      float c = 1.0f - a;
+      float r = a * (float)p.r + c * (float)d.r;
+      float g = a * (float)p.g + c * (float)d.g;
+      float b = a * (float)p.b + c * (float)d.b;
+      return pDrawTarget->SetPixel(x, y, Pixel((uint8_t)r, (uint8_t)g, (uint8_t)b/*, (uint8_t)(p.a * fBlendFactor)*/));
+    }
+
+    if (nPixelMode == Pixel::CUSTOM)
+    {
+      return pDrawTarget->SetPixel(x, y, funcPixelMode(x, y, p, pDrawTarget->GetPixel(x, y)));
+    }
+
+    return false;
+  }
+
 	// This is it, the critical function that plots a pixel
-	bool PixelGameEngine::Draw(int32_t x, int32_t y, Pixel p)
+	void PixelGameEngine::FastDraw(int32_t x, int32_t y, Pixel p)
 	{
-		if (!pDrawTarget) return false;
+	  assert(pDrawTarget);
+	  assert(nPixelMode == Pixel::NORMAL);
 
-		if (nPixelMode == Pixel::NORMAL)
-		{
-			return pDrawTarget->SetPixel(x, y, p);
-		}
-
-		if (nPixelMode == Pixel::MASK)
-		{
-			if (p.a == 255)
-				return pDrawTarget->SetPixel(x, y, p);
-		}
-
-		if (nPixelMode == Pixel::ALPHA)
-		{
-			Pixel d = pDrawTarget->GetPixel(x, y);
-			float a = (float)(p.a / 255.0f) * fBlendFactor;
-			float c = 1.0f - a;
-			float r = a * (float)p.r + c * (float)d.r;
-			float g = a * (float)p.g + c * (float)d.g;
-			float b = a * (float)p.b + c * (float)d.b;
-			return pDrawTarget->SetPixel(x, y, Pixel((uint8_t)r, (uint8_t)g, (uint8_t)b/*, (uint8_t)(p.a * fBlendFactor)*/));
-		}
-
-		if (nPixelMode == Pixel::CUSTOM)
-		{
-			return pDrawTarget->SetPixel(x, y, funcPixelMode(x, y, p, pDrawTarget->GetPixel(x, y)));
-		}
-
-		return false;
+    pDrawTarget->FastSetPixel(x, y, p);
 	}
 
 
