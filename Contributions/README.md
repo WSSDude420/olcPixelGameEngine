@@ -15,14 +15,24 @@ These source code contributions enhance the functionality of the olcPixelGameEng
   * https://github.com/justinrichardsmusic/PGEv2_Extensions
 * DearImGUI Integration
   * https://github.com/dandistine/olcPGEDearImGui
+* General Font Rendering
+  * https://github.com/gorbit99/olcPGEX_ttf
+* Pre-loaded Font Rendering
+  * https://github.com/Oso-Grande/olcPGEX_Font
+* Arc Drawing
+  * https://github.com/AlterEgoIV/olcPGEX_Arc
   
 ## MacOS Support
 * These will potentially be absorbed into main build
   * https://github.com/MumflrFumperdink/olcPGEMac
 
 ## Build Systems
+* Meson (https://mesonbuild.com/index.html)
+  * https://github.com/jpakkane/pixeldemo
 * CMake script 
   * https://github.com/plane000/olcPixelGameEngine/blob/master/CMakeLists.txt 
+* CMake script for all includes Emscripten/WASM/Webby stuff
+  * https://github.com/L0huis/PGE-CMake
 
 ## Utilities
 * Additional fonts and font handling tools 
